@@ -1,4 +1,4 @@
-# Frontal Gait-Flow Recognition \U0001F6B6 \U0001F52C
+# Frontal Gait-Flow Recognition
 
 **Multimodal Biometric Identification System using Optical Flow and IMU Kinematics.**
 
@@ -6,7 +6,7 @@ This project implements a robust forensic biometric system capable of identifyin
 
 ---
 
-## \U0001F31F Key Features
+## Key Features
 
 *   **Multimodal Fusion**: Combines dense optical flow energy images (GOFI) with 95 statistical features from wearable IMU sensors.
 *   **Robust Preprocessing**:
@@ -20,7 +20,7 @@ This project implements a robust forensic biometric system capable of identifyin
 
 ---
 
-## \U0001F4C2 Project Structure
+## Project Structure
 
 ```bash
 Gait-Flow-Recognition/
@@ -41,7 +41,7 @@ Gait-Flow-Recognition/
 
 ---
 
-## \U0001F680 Usage
+## Usage
 
 ### 1. Prerequisites
 Ensure you have Python 3.8+ installed. Install dependencies:
@@ -62,8 +62,8 @@ python code/multimodal_feature_extractor.py
 ```bash
 python code/check_duplicates.py
 ```
-*   \U0001F7E2 **Green**: Test Passed.
-*   \U0001F534 **Red**: Leakage Detected (Do not proceed).
+*   **Green**: Test Passed.
+*   **Red**: Leakage Detected (Do not proceed).
 
 ### 4. Training Models
 Train the Support Vector Machines (SVM) with RBF Kernels:
@@ -77,7 +77,7 @@ python code/train_slope.py
 
 ### 5. Running Demos
 
-#### \U0001F50D Gait Visualizer (Forensic Mode)
+#### Gait Visualizer (Forensic Mode)
 Detailed analysis of specific run, showing the "Gait DNA" comparison matrix.
 ```bash
 python code/predict_visual.py
@@ -93,7 +93,7 @@ python code/predict_demo_security.py
 
 ---
 
-## \U0001F4DD Methodology Highlight
+## Methodology Highlight
 
 The system relies on a **Global Optical Flow Image (GOFI)**, which aggregates temporal motion into a single spatial descriptor:
 
@@ -105,6 +105,6 @@ For classification, we use **PCA (0.99 variance)** followed by an **SVM (RBF Ker
 
 ---
 
-## \U0001F464 Author
+## Author
 
 **Lorenzo Musso and Giulia Pietrangeli**
