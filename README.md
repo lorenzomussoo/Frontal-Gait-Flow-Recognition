@@ -53,6 +53,8 @@ pip install numpy opencv-python pandas scikit-learn rich joblib
 To process raw video headers and IMU CSVs into feature vectors:
 ```bash
 python code/multimodal_feature_extractor.py
+
+python code/organize_imu.py
 ```
 *   **Input**: Raw dataset in `/Volumes/LaCie/GAIT/dataset` (Adjust path in script).
 *   **Output**: Normalized `.npy` vectors in `processed_features/`.
