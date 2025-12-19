@@ -77,7 +77,7 @@ Scripts handling the transition from raw ROS bags and CSVs to the canonical data
 Strict validation scripts to ensure zero data leakage and dataset health.
 * `check_duplicates.py` / `check_video_duplicates.py`: Calculates MD5/SHA256 hashes to verify physical separation between Train and Test sets.
 * `check_basename.py`: Validates the logical consistency of the Train/Test split (**Walk: Runs 5-6 Test; Others: Run 3 Test**) to ensure zero data leakage.
-* `check_dims.py`: Verifies the structural integrity and dimensionality of processed feature vectors (e.g., checking for 24,576 video features).
+* `check_dims.py`: Verifies the structural integrity and dimensionality of processed feature vectors.
 * `audit_video_health.py`: Flags corrupted video files or samples with insufficient frame counts.
 * `verify_dataset_completeness.py`: Ensures 100% alignment between IMU and Video files for all subjects.
 * `fix_and_audit.py`: Automated repair script for common dataset inconsistencies.
