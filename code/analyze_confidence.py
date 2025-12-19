@@ -21,6 +21,9 @@ MODEL_DIR = "model_multimodal"
 PATH_MAIN = os.path.join(MODEL_DIR, "multimodal_svm_walk_stairs.joblib")
 PATH_SLOPE = os.path.join(MODEL_DIR, "svm_slope.joblib")
 
+OUTPUT_DIR = os.path.join("analysis")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 def run_analysis(model_path, data_loader_func, title_suffix, save_img_name):
     console.print(Panel.fit(f"[bold yellow]--- ANALYSIS DEEP CONFIDENCE: {title_suffix} ---[/bold yellow]"))
 
@@ -164,11 +167,11 @@ Corrects Lost: {lost_correct} ({perc_lost:.1f}%)""", title="Strategic Advice"))
     console.print(f"[green]Graph saved: {save_img_name}[/green]")
 
 def run_all_analysis():
-    run_analysis(PATH_MAIN, load_data, "MAIN (Walk/Stairs)", "confidence_analysis_walk_stairs.png")
+    run_analysis(PATH_MAIN, load_data, "MAIN (Walk/Stairs)", os.path.join(OUTPUT_DIR, "confidence_analysis_walk_stairs.png"))
     
     print("\n" + "="*60 + "\n")
     
-    run_analysis(PATH_SLOPE, load_data_slope, "SLOPE (IMU Only)", "confidence_analysis_slope.png")
+    run_analysis(PATH_SLOPE, load_data_slope, "SLOPE (IMU Only)", os.path.join(OUTPUT_DIR, "confidence_analysis_slope.png"))
 
 if __name__ == "__main__":
     run_all_analysis()

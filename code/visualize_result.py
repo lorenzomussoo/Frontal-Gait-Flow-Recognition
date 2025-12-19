@@ -21,6 +21,9 @@ MODEL_DIR = "model_multimodal"
 PATH_MAIN = os.path.join(MODEL_DIR, "multimodal_svm_walk_stairs.joblib")
 PATH_SLOPE = os.path.join(MODEL_DIR, "svm_slope.joblib")
 
+OUTPUT_DIR = os.path.join("analysis")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 def plot_confusion_matrix(y_true, y_pred, title, filename):
     classes = sorted(list(set(y_true)))
     cm = confusion_matrix(y_true, y_pred, labels=classes)
@@ -60,7 +63,7 @@ def analyze_main_model():
     
     plot_confusion_matrix(y_test, y_pred, 
                           "Confusion Matrix: Walk & Stairs (Video+IMU)", 
-                          "confusion_matrix_walk_stairs.png")
+                          os.path.join(OUTPUT_DIR, "confusion_matrix_walk_stairs.png"))
 
 def analyze_slope_model():
     console.print(Panel.fit("[bold magenta]--- ANALYSIS SLOPE MODEL (IMU Only) ---[/bold magenta]"))
@@ -85,7 +88,7 @@ def analyze_slope_model():
     
     plot_confusion_matrix(y_test, y_pred, 
                           "Confusion Matrix: Slope (IMU Only)", 
-                          "confusion_matrix_slope.png")
+                          os.path.join(OUTPUT_DIR, "confusion_matrix_slope.png"))
 
 def run_all_visualizations():
     console.print("[bold]Starting visualization of both models...[/bold]\n")
