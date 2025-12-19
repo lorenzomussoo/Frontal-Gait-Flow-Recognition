@@ -49,6 +49,7 @@ The extracted features are processed through a **two-branch learning architectur
 
 ### Root
 * `Report.pdf`: Comprehensive technical report detailing the study, methodology, and results.
+* `Presentation.pdf`
 * `analysis/`: Contains performance evaluation plots.
     * `confusion_matrix_*.png`: Visualises classification accuracy per subject (Walk/Stairs and Slope).
     * `confidence_analysis_*.png`: Reliability and error distribution analysis with probability density curves.
