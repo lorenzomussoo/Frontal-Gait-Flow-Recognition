@@ -1,112 +1,70 @@
 # Frontal Gait-Flow Recognition
+**Advanced Multimodal Biometric Identification System using Optical Flow and IMU Kinematics.**
 
-**Multimodal Biometric Identification System using Optical Flow and IMU Kinematics.**
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![OpenCV](https://img.shields.io/badge/OpenCV-4.x-green.svg)](https://opencv.org/)
+[![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-Latest-orange.svg)](https://scikit-learn.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This project implements a robust forensic biometric system capable of identifying individuals based on their unique gait patterns. By fusing **Visual Data** (RGB-Depth) and **Kinematic Data** (IMU Sensors), the system achieves state-of-the-art accuracy across diverse scenarios, including flat ground walking, stair climbing, and slope navigation.
-
----
-
-## Key Features
-
-*   **Multimodal Fusion**: Combines dense optical flow energy images (GOFI) with 95 statistical features from wearable IMU sensors.
-*   **Robust Preprocessing**:
-    *   Static Background Subtraction ($N=20$).
-    *   Farneback Dense Optical Flow (Hue-encoded directionality).
-    *   Lucas-Kanade Sparse Feature Tracking (Visualizing limb swing).
-*   **Data Integrity**: Built-in anti-leakage verification system using MD5 hashing to ensure mathematically disjoint training and test sets.
-*   **Forensic Visualization**:
-    *   **Gait DNA Matrix**: Explains predictions by comparing subject features with reference clusters.
-    *   **Security Pro Terminal**: Simulates a real-world access control system with "Heatmap", "Cyber Edges", and "Vibrant Depth" visual filters.
+## Overview
+This project implements a state-of-the-art forensic biometric system that identifies individuals by their unique gait (walking) patterns. By fusing **Visual Motion Data** (RGB-Depth Optical Flow) with **Kinematic Data** (Wearable IMU Sensors), the system maintains high precision across various terrains, including flat ground, stairs, and slopes.
 
 ---
 
-## Project Structure
+## Technical Methodology
 
-```bash
-Gait-Flow-Recognition/
-├── analysis/                # Statistical analysis and plots
-├── code/                    # Source code
-│   ├── gait_processing.py            # Core visual algorithms (Background, Optical Flow, LK)
-│   ├── multimodal_feature_extractor.py # Feature extraction pipeline (Video + IMU)
-│   ├── train_slope.py                # SVM training for Slope tasks (IMU only)
-│   ├── train_walk_stairs.py          # SVM training for Walk/Stairs (Multimodal)
-│   ├── predict_visual.py             # Forensic Gait Visualizer Demo
-│   ├── predict_demo_security.py      # Security Access Control Simulation
-│   ├── check_duplicates.py           # Data leakage verification
-│   └── ...                           # Utility scripts (cleaning, auditing)
-├── model_multimodal/        # Saved SVM models (.joblib) and PCA parameters
-├── processed_features/      # Extracted .npy feature vectors (organized by Subject/Action)
-└── project_report.tex       # Comprehensive LaTeX technical report
-```
+### 1. Visual Descriptor (GOFI)
+The system extracts temporal dynamics using a **Global Optical Flow Image (GOFI)**. It uses the Farneback algorithm to compute dense motion vectors, which are then aggregated over a gait cycle to create a spatial representation of movement energy.
+
+### 2. Kinematic Features
+The system processes 19 data streams from IMU sensors (Acceleration, Gyroscope, Magnetometer, and Joint Angles), extracting **95 statistical features** (Mean, Std, RMS, Range, etc.) per segment.
+
+### 3. Classification
+Data is fused and passed through a **PCA-SVM** pipeline:
+- **PCA**: Dimensionality reduction (99% variance).
+- **SVM (RBF Kernel)**: High-dimensional classification for subject identification.
 
 ---
 
-## Usage
+## Repository Structure
 
-### 1. Prerequisites
-Ensure you have Python 3.8+ installed. Install dependencies:
-```bash
-pip install numpy opencv-python pandas scikit-learn rich joblib
-```
+### Root
+*   `Report.pdf`: Comprehensive technical report detailing the study, methodology, and results.
+*   `analysis/`: Contains performance evaluation plots.
+    *   `confusion_matrix_*.png`: Visualizes classification accuracy per subject.
+    *   `confidence_analysis_*.png`: Reliability and error distribution analysis.
+*   `model_multimodal/`: Pre-trained models and configurations.
+    *   `svm_*.joblib`: Serialized SVM models.
+    *   `best_params_*.json`: Hyperparameters found during Grid Search.
 
-### 2. Feature Extraction
-To process raw video headers and IMU CSVs into feature vectors:
-```bash
-python code/multimodal_feature_extractor.py
+### code/ (Source Files)
+#### **Core Pipeline**
+*   `gait_processing.py`: Core Computer Vision logic (Background subtraction, Optical Flow).
+*   `multimodal_feature_extractor.py`: Fuses Video and IMU data into unified feature vectors.
+*   `train_walk_stairs.py` & `train_slope.py`: Training scripts for different terrain models.
 
-python code/organize_imu.py
-```
-*   **Input**: Raw dataset in `/Volumes/LaCie/GAIT/dataset` (Adjust path in script).
-*   **Output**: Normalized `.npy` vectors in `processed_features/`.
+#### **Demos & Visualization**
+*   `predict_visual.py`: Forensic tool showing "Gait DNA" and movement analysis.
+*   `predict_demo_security.py`: High-tech simulation of a biometric security checkpoint.
+*   `visualize_result.py`: General result plotting utility.
 
-### 3. Data Verification
-**Crucial Step**: Before training, verify that no test data has leaked into the training set.
-```bash
-python code/check_duplicates.py
-```
-*   **Green**: Test Passed.
-*   **Red**: Leakage Detected (Do not proceed).
+#### **Data Integrity & Audit (Forensic Focus)**
+*   `check_duplicates.py` / `check_video_duplicates.py`: MD5 hashing to prevent training/test leakage.
+*   `fix_and_audit.py` / `audit_video_health.py`: Dataset cleaning and synchronization verification.
+*   `verify_dataset_completeness.py`: Ensures all subjects have matching IMU and Video files.
 
-### 4. Training Models
-Train the Support Vector Machines (SVM) with RBF Kernels:
-```bash
-# Main Model (Walk + Stairs) -> Video + IMU Fusion
-python code/train_walk_stairs.py
-
-# Slope Model (Slope Up/Down) -> IMU Only (Specialist Model)
-python code/train_slope.py
-```
-
-### 5. Running Demos
-
-#### Gait Visualizer (Forensic Mode)
-Detailed analysis of specific run, showing the "Gait DNA" comparison matrix.
-```bash
-python code/predict_visual.py
-```
-*   **Controls**: `SPACE` to pause, `Q` to quit.
-
-#### \U0001F6E1\uFE0F Security Pro System (Simulation)
-Simulates a gate access terminal with advanced visual overlays.
-```bash
-python code/predict_demo_security.py
-```
-*   **Features**: Displays real-time confidence, status codes (Granted/Denied), and visual filters (Heatmap, Cyber Edges).
+#### **Utility & Maintenance**
+*   `organize_imu.py` / `cleanup_imu.py`: Pre-processing and cleaning of raw sensor CSVs.
+*   `convert_bags.py` / `explore_bag.py`: Tools for handling ROS bag files (dataset source).
+*   `ablation_study.py`: Evaluates the impact of removing specific features or sensors.
 
 ---
 
-## Methodology Highlight
+## Getting Started
 
-The system relies on a **Global Optical Flow Image (GOFI)**, which aggregates temporal motion into a single spatial descriptor:
-
-$$ \text{GOFI}(x,y) = \sum_{t=1}^{T} \vec{V}_t(x,y) $$
-
-This is concatenated with a **Statistical IMU Vector** $\mathbf{v}_{imu} \in \mathbb{R}^{95}$, comprised of Mean, Std, Min, Max, and RMS for 19 sensor streams (Acceleration, Gyro, Magnetometer, Joint Angles).
-
-For classification, we use **PCA (0.99 variance)** followed by an **SVM (RBF Kernel)**, achieving >95% accuracy on the multimodal test set.
-
----
-
-## Author
-
-**Lorenzo Musso and Giulia Pietrangeli**
+### Installation
+Ensure you are using Python 3.12+.
+```bash
+git clone https://github.com/lorenzomussoo/Frontal-Gait-Flow-Recognition.git
+cd Frontal-Gait-Flow-Recognition
+pip install numpy opencv-python pandas scikit-learn joblib rich
