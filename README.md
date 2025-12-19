@@ -13,51 +13,74 @@ This project implements a state-of-the-art forensic biometric system that identi
 
 ## Technical Methodology
 
-### 1. Visual Descriptor (GOFI)
-The system extracts temporal dynamics using a **Global Optical Flow Image (GOFI)**. It uses the Farneback algorithm to compute dense motion vectors, which are then aggregated over a gait cycle to create a spatial representation of movement energy.
+The system implements a **Multimodal Gait Recognition** framework that fuses computer vision and inertial dynamics.
 
-### 2. Kinematic Features
-The system processes 19 data streams from IMU sensors (Acceleration, Gyroscope, Magnetometer, and Joint Angles), extracting **95 statistical features** (Mean, Std, RMS, Range, etc.) per segment.
+### 1. Visual Descriptors (Video)
+To capture temporal motion patterns, the vision pipeline employs two complementary optical flow techniques:
+* **GOFI (Gait Optical Flow Image):** Utilising **Dense Optical Flow** (Farneback algorithm), we accumulate the magnitude of flow vectors over the gait cycle to generate a spatial energy map.
+* **Trace Map:** Utilising **Sparse Optical Flow** (Lucas-Kanade with Shi-Tomasi detection), we track specific anatomical key-points to create a skeletal history of limb trajectories.
+* **Preprocessing:** Background is removed using a temporal median filter and Otsu's binarisation.
 
-### 3. Classification
-Data is fused and passed through a **PCA-SVM** pipeline:
-- **PCA**: Dimensionality reduction (99% variance).
-- **SVM (RBF Kernel)**: High-dimensional classification for subject identification.
+### 2. Kinematic Features (IMU)
+Since raw inertial logs vary in length based on the walking speed, we apply **Statistical Feature Extraction** to the 19 raw CSV logs (Xsens).
+For each sensor channel (Acceleration, Gyroscope, Joint Angles), we compute a **5-dimensional descriptor**:
+* Mean ($\mu$)
+* Standard Deviation ($\sigma$)
+* Minimum ($min$)
+* Maximum ($max$)
+* Root Mean Square ($RMS$)
 
+### 3. Classification Architecture
+The extracted features are processed through a standardised Machine Learning pipeline:
+* **Fusion:** Early Fusion strategy (concatenation of Visual and Inertial vectors).
+* **Dimensionality Reduction (PCA):** Principal Component Analysis configured to retain **95% of explained variance** ($n\_components=0.95$). This reduces the feature space to prevent overfitting.
+* **Classifier:** Support Vector Machine (**SVM**) with a **Linear Kernel** ($C=1$). The Linear kernel was selected after Grid Search proved that the multimodal features are linearly separable in the projected space.
 ---
 
 ## Repository Structure
 
 ### Root
-*   `Report.pdf`: Comprehensive technical report detailing the study, methodology, and results.
-*   `analysis/`: Contains performance evaluation plots.
-    *   `confusion_matrix_*.png`: Visualizes classification accuracy per subject.
-    *   `confidence_analysis_*.png`: Reliability and error distribution analysis.
-*   `model_multimodal/`: Pre-trained models and configurations.
-    *   `svm_*.joblib`: Serialized SVM models.
-    *   `best_params_*.json`: Hyperparameters found during Grid Search.
+* [cite_start]`Report.pdf`: Comprehensive technical report detailing the study, methodology, and results[cite: 1].
+* `analysis/`: Contains performance evaluation plots.
+    * `confusion_matrix_*.png`: Visualises classification accuracy per subject (Walk/Stairs and Slope).
+    * `confidence_analysis_*.png`: Reliability and error distribution analysis with probability density curves.
+* `model_multimodal/`: Pre-trained models and configurations.
+    * `multimodal_svm_walk_stairs.joblib`: Main SVM model (Video + IMU).
+    * `svm_slope.joblib`: Slope-specific SVM model (IMU Only).
+    * `best_params_*.json`: Optimal hyperparameters ($C$, $Gamma$, PCA components) found during Grid Search.
 
-### code/ (Source Files)
-#### **Core Pipeline**
-*   `gait_processing.py`: Core Computer Vision logic (Background subtraction, Optical Flow).
-*   `multimodal_feature_extractor.py`: Fuses Video and IMU data into unified feature vectors.
-*   `train_walk_stairs.py` & `train_slope.py`: Training scripts for different terrain models.
+### Source Code (`code/`)
 
-#### **Demos & Visualization**
-*   `predict_visual.py`: Forensic tool showing "Gait DNA" and movement analysis.
-*   `predict_demo_security.py`: High-tech simulation of a biometric security checkpoint.
-*   `visualize_result.py`: General result plotting utility.
+#### **1. Core Machine Learning Pipeline**
+* `gait_processing.py`: Core Computer Vision logic. [cite_start]Implements Background Subtraction (Median Filter), Dense Optical Flow (GOFI), and Sparse Optical Flow (Lucas-Kanade)[cite: 290].
+* [cite_start]`multimodal_feature_extractor.py`: Fuses Video and IMU data into unified feature vectors for training[cite: 280].
+* [cite_start]`train_walk_stairs.py`: Trains the Main Multimodal Model (PCA + Linear SVM)[cite: 294].
+* [cite_start]`train_slope.py`: Trains the specialized Slope Model (IMU-Only)[cite: 295].
 
-#### **Data Integrity & Audit (Forensic Focus)**
-*   `check_duplicates.py` / `check_video_duplicates.py`: MD5 hashing to prevent training/test leakage.
-*   `fix_and_audit.py` / `audit_video_health.py`: Dataset cleaning and synchronization verification.
-*   `verify_dataset_completeness.py`: Ensures all subjects have matching IMU and Video files.
+#### **2. Data Engineering & ETL (Extract, Transform, Load)**
+Scripts handling the transition from raw ROS bags and CSVs to the canonical dataset.
+* [cite_start]`convert_bags.py`: Parses binary ROS bags, decodes RGB-D streams, and normalizes depth[cite: 277].
+* [cite_start]`organize_imu.py`: Manages inertial data ingestion, resolving subject naming conflicts and merging sessions[cite: 278].
+* `explore_bag.py`: Utility to inspect the structure of raw ROS bag files.
+* `cleanup_imu.py`: Pre-processing and cleaning of raw sensor CSVs.
+* `fix_targets.py`: Utility for correcting label inconsistencies in the dataset.
 
-#### **Utility & Maintenance**
-*   `organize_imu.py` / `cleanup_imu.py`: Pre-processing and cleaning of raw sensor CSVs.
-*   `convert_bags.py` / `explore_bag.py`: Tools for handling ROS bag files (dataset source).
-*   `ablation_study.py`: Evaluates the impact of removing specific features or sensors.
+#### **3. Forensic Auditing & Data Integrity (QA)**
+[cite_start]Strict validation scripts to ensure zero data leakage and dataset health[cite: 282].
+* [cite_start]`check_duplicates.py` / `check_video_duplicates.py`: Calculates MD5/SHA256 hashes to verify physical separation between Train and Test sets[cite: 285].
+* [cite_start]`check_basename.py`: Validates the logical consistency of the Train/Test split based on run numbers[cite: 286].
+* [cite_start]`check_dims.py`: Verifies the structural integrity and dimensionality of processed feature vectors (e.g., checking for 24,576 video features)[cite: 287].
+* [cite_start]`audit_video_health.py`: Flags corrupted video files or samples with insufficient frame counts[cite: 283].
+* [cite_start]`verify_dataset_completeness.py`: Ensures 100% alignment between IMU and Video files for all subjects[cite: 284].
+* `fix_and_audit.py`: Automated repair script for common dataset inconsistencies.
+* `cleanup_processed.py`: Removes temporary or intermediate files from the processing pipeline.
 
+#### **4. Analysis, Demos & Visualisation**
+* `predict_demo_security.py`: **"Gait Security Pro"**. [cite_start]A real-time simulation of a biometric access control checkpoint with AR visualisation [cite: 302].
+* `predict_visual.py`: **"Gait Visualizer"**. [cite_start]An XAI (Explainable AI) forensic tool showing "Gait DNA" matrices[cite: 304].
+* [cite_start]`analyze_confidence.py`: Calibrates model probabilities to determine the optimal security rejection threshold[cite: 298].
+* [cite_start]`ablation_study.py`: Performs comparative experiments (Video vs. IMU vs. Fusion) to quantify modality impact[cite: 297].
+* [cite_start]`visualize_result.py`: Generates confusion matrices and performance plots[cite: 299].
 ---
 
 ## Getting Started
