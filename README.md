@@ -35,10 +35,13 @@ For each sensor channel (Acceleration, Gyroscope, Joint Angles), we compute a **
 > **Note:** The **Slope** dataset contains exclusively inertial data. Consequently, the system utilizes a specialized IMU-Only pipeline for these tasks, achieving 100% accuracy using kinematic features alone.
 
 ### 3. Classification Architecture
-The extracted features are processed through a standardised Machine Learning pipeline tailored to address the **Curse of Dimensionality**:
-* **Fusion:** Early Fusion strategy (concatenation of Visual and Inertial vectors) results in a massive feature space of approximately **54,082 dimensions**.
-* **Dimensionality Reduction (PCA):** Principal Component Analysis is configured to retain **95% of explained variance**. This step drastically compresses the feature space, reducing the Main Model input from **54,082 $\to$ 353 principal components**, effectively filtering noise while retaining biometric signals.
-* **Classifier:** Support Vector Machine (**SVM**) with a **Linear Kernel** ($C=1$). The Linear kernel was selected after Grid Search proved that the multimodal features are linearly separable in the PCA-projected space.
+The extracted features are processed through a **two-branch learning architecture** tailored to the specific modality availability:
+
+* **Feature Spaces & Dimensionality Reduction (PCA):**
+    We apply Principal Component Analysis (retaining **95% variance**) to compress the input space while filtering noise:
+    * **Main Model (Walk/Stairs):** The high-dimensional multimodal vector is reduced from **54,082 $\to$ 353 principal components**.
+    * **Slope Model (IMU Only):** The inertial feature vector is reduced from **4,930 $\to$ 53 principal components**.
+* **Classifier:** Both branches utilize a Support Vector Machine (**SVM**) with a **Linear Kernel** ($C=1$). The Linear kernel was selected after Grid Search proved that both the massive multimodal space and the compact inertial space are linearly separable.
 
 ---
 
