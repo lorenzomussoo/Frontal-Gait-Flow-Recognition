@@ -1,0 +1,199 @@
+import os
+import numpy as np
+import re
+import json
+from sklearn import svm
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
+from joblib import dump
+import warnings
+from rich.console import Console
+from rich.panel import Panel
+from rich.progress import track
+from rich.table import Table
+from rich import box
+
+np.random.seed(42)
+
+warnings.filterwarnings("ignore")
+console = Console()
+
+FEATURES_ROOT = "/Volumes/LaCie/GAIT/processed_features"
+MODEL_DIR = "model_multimodal"
+PARAMS_FILE = os.path.join(MODEL_DIR, 'best_params_walk_stairs.json')
+
+PERFORM_GRID_SEARCH = False 
+
+SEED = 42
+
+def is_test_run(action_name, run_number):
+    act = action_name.lower()
+    
+    if "walk" in act:
+        return run_number in ['5', '6']
+    else:
+        return run_number == '3'
+
+def get_run_info(file_path):
+    filename = os.path.basename(file_path)
+    parent_dir = os.path.basename(os.path.dirname(file_path))
+    if "Run_" in parent_dir:
+        try: return parent_dir.split('_')[-1]
+        except: pass
+    match = re.search(r'_(\d+)(?:_flip)?\.npy$', filename)
+    if match: return match.group(1)
+    return '0'
+
+def load_data():
+    console.print(Panel.fit(f"[bold yellow]Loading Dataset from: {FEATURES_ROOT}[/bold yellow]"))
+    X_train, y_train = [], []
+    X_test, y_test = [], []
+    meta_test = [] 
+
+    if not os.path.exists(FEATURES_ROOT):
+        console.print("[red]Error: Features folder not found![/red]")
+        return None
+
+    subjects = sorted([d for d in os.listdir(FEATURES_ROOT) if os.path.isdir(os.path.join(FEATURES_ROOT, d))])
+
+    # --- ESCLUSIONE SPECIFICA DI UNA PERSONA ---
+    # PERSONA_DA_ESCLUDERE = "Alessio" 
+    # if PERSONA_DA_ESCLUDERE in subjects:
+    #     subjects.remove(PERSONA_DA_ESCLUDERE)
+    #     console.print(f"[bold red]ATTENZIONE: Ho rimosso {PERSONA_DA_ESCLUDERE} dal training/test![/bold red]")
+    # -------------------------------------------
+    
+    for subj in track(subjects, description="Loading subjects..."): 
+        subj_path = os.path.join(FEATURES_ROOT, subj)
+        for action in os.listdir(subj_path):
+            if action.startswith('.'): continue
+            if "slope" in action.lower(): continue
+            action_path = os.path.join(subj_path, action)
+            if not os.path.isdir(action_path): continue
+            
+            for root, _, files in os.walk(action_path):
+                for f in files:
+                    if not f.endswith('.npy') or f.startswith('._'): continue
+                    file_path = os.path.join(root, f)
+                    try:
+                        vector = np.load(file_path)
+                    except: continue
+                    
+                    run_num = get_run_info(file_path)
+                    
+                    if is_test_run(action, run_num):
+                        X_test.append(vector)
+                        y_test.append(subj)
+                        meta_test.append(f)
+                    else:
+                        X_train.append(vector)
+                        y_train.append(subj)
+
+    return np.array(X_train), np.array(X_test), np.array(y_train), np.array(y_test), meta_test
+
+def print_pretty_classification_report(y_true, y_pred):
+    report = classification_report(y_true, y_pred, output_dict=True)
+    table = Table(title="\nDetailed Performance per Subject", box=box.ROUNDED)
+    table.add_column("Subject", style="cyan", no_wrap=True)
+    table.add_column("Precision", justify="center")
+    table.add_column("Recall", justify="center")
+    table.add_column("F1-Score", justify="center")
+    table.add_column("Support", justify="right")
+
+    special_keys = ['accuracy', 'macro avg', 'weighted avg']
+    subjects = [k for k in report.keys() if k not in special_keys]
+    
+    for subj in sorted(subjects):
+        metrics = report[subj]
+        p, r, f1, s = metrics['precision'], metrics['recall'], metrics['f1-score'], metrics['support']
+        
+        def colorize(val):
+            if val >= 0.95: return f"[bold green]{val:.2f}[/bold green]"
+            if val >= 0.80: return f"[green]{val:.2f}[/green]"
+            if val >= 0.60: return f"[yellow]{val:.2f}[/yellow]"
+            return f"[bold red]{val:.2f}[/bold red]"
+
+        table.add_row(subj, colorize(p), colorize(r), colorize(f1), str(s))
+
+    table.add_section()
+    acc = report['accuracy']
+    table.add_row("[bold]ACCURACY[/bold]", "", "", f"[bold blue]{acc:.2f}[/bold blue]", str(len(y_true)))
+    console.print(table)
+
+def train_and_evaluate():
+    data = load_data()
+    if data is None: return
+    X_train, X_test, y_train, y_test, meta_test = data
+    
+    if np.isnan(X_train).any():
+        X_train = np.nan_to_num(X_train)
+        X_test = np.nan_to_num(X_test)
+
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    base_pipeline = Pipeline([
+        ('scaler', StandardScaler()),
+        ('pca', PCA()), 
+        ('svm', svm.SVC(probability=True, random_state=SEED))
+    ])
+
+    final_model = None
+    
+    if PERFORM_GRID_SEARCH:
+        console.print(Panel.fit("[bold cyan]Starting Grid Search...[/bold cyan]"))
+        param_grid = [
+            {'pca__n_components': [0.95, 0.99], 'svm__kernel': ['linear'], 'svm__C': [1, 10]},
+            {'pca__n_components': [0.95, 0.99], 'svm__kernel': ['rbf'], 'svm__C': [10, 100], 'svm__gamma': ['scale']}
+        ]
+        search = GridSearchCV(base_pipeline, param_grid, cv=3, n_jobs=-1, verbose=2)
+        search.fit(X_train, y_train)
+        best_params = search.best_params_
+        with open(PARAMS_FILE, 'w') as f: json.dump(best_params, f, indent=4)
+        final_model = search.best_estimator_
+    else:
+        console.print(Panel.fit("[bold blue]Fast training (Load JSON)...[/bold blue]"))
+        if os.path.exists(PARAMS_FILE):
+            with open(PARAMS_FILE, 'r') as f: loaded_params = json.load(f)
+            base_pipeline.set_params(**loaded_params)
+        else:
+            base_pipeline.set_params(pca__n_components=0.99, svm__kernel='linear', svm__C=1)
+            
+        base_pipeline.fit(X_train, y_train)
+        final_model = base_pipeline
+
+    n_features_original = X_train.shape[1]
+    pca_step = final_model.named_steps['pca']
+    n_features_pca = pca_step.n_components_
+    variance_retained = sum(pca_step.explained_variance_ratio_) * 100
+
+    console.print(Panel(
+        f"[bold]Numbers of Original Features:[/bold] {n_features_original}\n"
+        f"[bold]Numbers of Features after PCA:[/bold]  {n_features_pca}\n"
+        f"[dim]Retained Variance: {variance_retained:.2f}%[/dim]",
+        title="Dimensionality Reduction Info",
+        border_style="magenta"
+    ))
+
+    y_pred = final_model.predict(X_test)
+    
+    print_pretty_classification_report(y_test, y_pred)
+    
+    wrong_indices = np.where(y_test != y_pred)[0]
+    if len(wrong_indices) > 0:
+        table = Table(title=f"Errors made ({len(wrong_indices)})", show_lines=True)
+        table.add_column("File .NPY", style="dim") 
+        table.add_column("Real", style="green")
+        table.add_column("Predicted", style="red")
+        for i in wrong_indices:
+            table.add_row(meta_test[i], y_test[i], y_pred[i])
+        console.print(table)
+    else:
+        console.print("[bold green]NO ERRORS![/bold green]")
+
+    dump(final_model, os.path.join(MODEL_DIR, 'multimodal_svm_walk_stairs.joblib'))
+
+if __name__ == "__main__":
+    train_and_evaluate()
